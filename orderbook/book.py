@@ -36,10 +36,10 @@ class OrderBook:
         
         elif side == "buy":
             if price not in self._bids:
-                self._bids[price] = deque()
-                heapq.heappush(self._bid_heap, -price)
-            self._bids[price].append(order)
+                self._bids[price] = deque()    # same as ask side: new level gets a new deque
+                heapq.heappush(self._bid_heap, -price)    # difference: push -price (max-heap via min-heap)
+            self._bids[price].append(order)    # same as ask side: add the order to the deque
 
-        self._orders[order_id] = order
-        return []
+        self._orders[order_id] = order    # register by id so cancel can locate this order later
+        return []    # no trades happened (order just rested) -> empty trade list
 
