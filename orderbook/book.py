@@ -46,23 +46,31 @@ class OrderBook:
     def submit_market(self, side, quantity):
 
         order_id = self._next_id    
-        self._next_id += 1                               #running count for every new market order
+        self._next_id += 1                               #running count for every order: market and limit
         remaining = quantity    
-        trades = [] 
+        trades = []                                      #list because there may be more than 1 trade
 
         if side == "buy":
-            while remaining > 0 and self._asks:
-                best_price = self.best_ask()
-                resting = self._asks[best_price][0]
-                trade_qty = min(remaining, resting.quantity)
-                trade = Trade(price = best_price, quantity = trade_qty, aggressor_side = side, maker_order_id = resting.order_id,
-                               taker_order_id = order_id, timestamp = order_id)
-                trades.append(trade)
-                remaining -= trade_qty                   #remaining shares unfilled in market order
-                resting.quantity -= trade_qty            #shrinks the resting limit order's size
-                if resting.quantity == 0:                #no more orders at the front of deque
-                    self._asks[best_price].popleft()     #or this is reducing quantity in deque
-                    if not self._asks[best_price]:       #if the deque is empty
-                        del self._asks[best_price]       #remove deque from dict
+            book = self._asks                            #bind method to correct dict side
+            best_price_mthd = self.best_ask              #bind method to correct side, no parens to store instead of calling the method
+        elif side == "sell":
+            book = self._bids
+            best_price_mthd = self.best_bid
+        else:
+            raise ValueError(f"bad side {side}")
+
+        while remaining > 0 and book:
+            best_price = best_price_mthd()               #actually call the method using the stored variable
+            resting = book[best_price][0]                #oldest order for best price in deque
+            trade_qty = min(remaining, resting.quantity)
+            trade = Trade(price = best_price, quantity = trade_qty, aggressor_side = side, maker_order_id = resting.order_id,
+                            taker_order_id = order_id, timestamp = order_id)
+            trades.append(trade)
+            remaining -= trade_qty                       #remaining shares unfilled in market order
+            resting.quantity -= trade_qty                #shrinks the resting limit order's size
+            if resting.quantity == 0:                    #if front order fully filled
+                book[best_price].popleft()               #removes the fully-filled front order
+                if not book[best_price]:                 #if the deque is empty
+                    del book[best_price]                 #remove deque from dict
         return trades
     
